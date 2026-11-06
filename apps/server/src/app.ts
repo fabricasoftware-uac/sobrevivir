@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import cors from 'cors';
 import { Server as IOServer } from 'socket.io';
 import { z } from 'zod';
 import { RULES_VERSION, operationSchema } from '@sobrevivir/engine';
@@ -19,14 +20,21 @@ export interface AppOptions {
   store: Store | null;
   storeError?: string;
   staticDir?: string;
+  corsOrigin?: string;
 }
 
 export function createApp(opts: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
+
+  const rawOrigin = opts.corsOrigin ?? process.env.CORS_ORIGIN ?? '*';
+  const allowedOrigins = rawOrigin === '*' ? '*' : rawOrigin.split(',').map((s) => s.trim());
+  const corsConfig = rawOrigin === '*' ? { origin: '*' } : { origin: allowedOrigins, credentials: true };
+
+  app.use(cors(corsConfig));
   app.use(express.json({ limit: '64kb' }));
   const http = createServer(app);
-  const io = new IOServer(http, { cors: { origin: false }, serveClient: false });
+  const io = new IOServer(http, { cors: corsConfig, serveClient: false });
   const service = opts.store ? new GameService(opts.store) : null;
   const presence = new Map<string, Map<string, Presence>>(); // roomId → socketId → presencia
 

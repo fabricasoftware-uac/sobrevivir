@@ -42,10 +42,13 @@ export class ApiError extends Error {
   }
 }
 
+export const SERVER_URL = ((import.meta.env.VITE_SERVER_URL as string | undefined) ?? '').replace(/\/$/, '');
+
 export async function api<T>(method: string, path: string, body?: unknown, key?: string): Promise<T> {
   let res: Response;
+  const fullPath = path.startsWith('http') ? path : `${SERVER_URL}${path}`;
   try {
-    res = await fetch(path, {
+    res = await fetch(fullPath, {
       method,
       headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -150,7 +153,7 @@ export function useRoom(code: string, key: string | undefined) {
   useEffect(() => {
     if (!key) return;
     refresh();
-    const socket = io({ auth: { code, key }, transports: ['websocket', 'polling'] });
+    const socket = io(SERVER_URL || undefined, { auth: { code, key }, transports: ['websocket', 'polling'] });
     socketRef.current = socket;
     socket.on('connect', () => {
       setConnection('conectado');
